@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Promille Party Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --gold: #fbbf24;
+      --silver: #cbd5e1;
+      --bronze: #d97706;
+      --danger: #f43f5e;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      line-height: 1.4;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.4rem; display: flex; align-items: center; gap: 0.5rem; }
+    h2 { font-size: 1.05rem; margin-bottom: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .party-bar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .badge {
+      background: #0284c7;
+      color: #fff;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .row { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 90px; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
+    input, select, button {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    button {
+      cursor: pointer;
+      background: #1d4ed8;
+      border-color: #2563eb;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.9; }
+    button.secondary { background: #334155; border-color: #475569; }
+    button.danger { background: var(--danger); border-color: #e11d48; width: auto; padding: 0.25rem 0.55rem; font-size: 0.75rem; }
+
+    /* Drink buttons */
+    .drink-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .drink-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.65rem 0.5rem;
+      background: #1e3a8a;
+      border: 1px solid #3b82f6;
+    }
+    .drink-btn span.sub { font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+
+    /* Podium */
+    .podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.75rem;
+      min-height: 175px;
+      padding-top: 1rem;
+    }
+    .podium-spot {
+      flex: 1;
+      max-width: 150px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .podium-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .podium-bac { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.4rem; }
+    .podium-pillar {
+      width: 100%;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .spot-1 .podium-pillar { height: 105px; background: linear-gradient(180deg, var(--gold), #d97706); }
+    .spot-2 .podium-pillar { height: 78px; background: linear-gradient(180deg, var(--silver), #64748b); }
+    .spot-3 .podium-pillar { height: 56px; background: linear-gradient(180deg, var(--bronze), #92400e); }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+    /* Drink log */
+    .drink-list { max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; }
+    .drink-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 0.4rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .chart-box { position: relative; height: 320px; width: 100%; }
+    .disclaimer { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🍻 Promille Party Tracker</h1>
+    <div class="party-bar">
+      <span class="badge" id="roomBadge">Rum: ---</span>
+      <input id="roomInput" placeholder="Rum-kode (fx FEST1)" style="width:145px" />
+      <button id="joinRoomBtn" class="secondary" style="width:auto">Skift Rum</button>
+      <button id="newRoomBtn" class="secondary" style="width:auto">Nyt Rum</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- Venstre: Profil & Genstande -->
+    <div class="card" style="margin-bottom:0">
+      <h2>1. Din Profil (denne enhed)</h2>
+      <div class="row">
+        <div>
+          <label for="userName">Navn</label>
+          <input id="userName" placeholder="Dit navn" />
+        </div>
+        <div>
+          <label for="userWeight">Vægt (kg)</label>
+          <input id="userWeight" type="number" min="35" max="250" value="75" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="userSex">Biologisk køn (r-faktor)</label>
+          <select id="userSex">
+            <option value="0.68">Mand (r = 0.68)</option>
+            <option value="0.55">Kvinde (r = 0.55)</option>
+          </select>
+        </div>
+        <div>
+          <label for="userStomach">Maveindhold (optagelsestid)</label>
+          <select id="userStomach">
+            <option value="25">Tom mave (~25 min)</option>
+            <option value="45" selected>Normal / spist for 2-3t siden (~45 min)</option>
+            <option value="75">Lige spist stort måltid (~75 min)</option>
+          </select>
+        </div>
+      </div>
+      <button id="saveProfileBtn">Gem & Deltag i Party</button>
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0" />
+
+      <h2>2. Registrer Genstand</h2>
+      <div class="drink-grid">
+        <button class="drink-btn" data-label="🍺 Alm. Øl" data-grams="12">
+          <span>🍺 Alm. Øl</span><span class="sub">33cl 4.6% (1 genst.)</span>
+        </button>
+        <button class="drink-btn" data-label="🍻 Stor Øl / IPA" data-grams="22">
+          <span>🍻 Stor Øl / IPA</span><span class="sub">50cl 5.6% (1.8 genst.)</span>
+        </button>
+        <button class="drink-btn" data-label="🍷 Glas Vin" data-grams="14">
+          <span>🍷 Glas Vin</span><span class="sub">15cl 12% (1.2 genst.)</span>
+        </button>
+        <button class="drink-btn" data-label="🥃 Shot" data-grams="12.8">
+          <span>🥃 Shot</span><span class="sub">4cl 40% (1.1 genst.)</span>
+        </button>
+        <button class="drink-btn" data-label="🍹 Drink" data-grams="16">
+          <span>🍹 Drink</span><span class="sub">5cl 40% (1.3 genst.)</span>
+        </button>
+        <button class="drink-btn" data-label="🍾 Cider / RTD" data-grams="12">
+          <span>🍾 Cider / RTD</span><span class="sub">33cl 4.5% (1 genst.)</span>
+        </button>
+      </div>
+
+      <details style="margin-bottom:0.75rem">
+        <summary style="cursor:pointer;font-size:0.85rem;color:var(--accent)">+ Tilpas egen genstand (ml, % og tidspunkt)</summary>
+        <div class="row" style="margin-top:0.5rem">
+          <div><label>Navn</label><input id="customLabel" value="Special" /></div>
+          <div><label>Volumen (ml)</label><input id="customMl" type="number" value="330" /></div>
+          <div><label>Alkohol (%)</label><input id="customAbv" type="number" step="0.1" value="5.0" /></div>
+          <div><label>Drukket for (min siden)</label><input id="customAgo" type="number" value="0" /></div>
+        </div>
+        <button id="addCustomBtn" class="secondary">Tilføj Egen Genstand</button>
+      </details>
+
+      <h2>Dine Genstande (<span id="myDrinkCount">0</span>)</h2>
+      <div class="drink-list" id="myDrinkList"></div>
+    </div>
+
+    <!-- Højre: Podium & Direkte Tabel -->
+    <div>
+      <div class="card">
+        <h2>🏆 Live Promille Podium</h2>
+        <div class="podium" id="podiumContainer"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:0">
+        <h2>📊 Direkte Promille Sammenligning</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Deltager</th>
+                <th>Nu (‰)</th>
+                <th>Peak (‰)</th>
+                <th>Genst.</th>
+                <th>&lt; 0.5‰</th>
+                <th>0.00‰</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graf -->
+  <div class="card">
+    <h2>📈 Promille Udvikling & Forbrænding (Live Party Graf)</h2>
+    <div class="chart-box">
+      <canvas id="bacChart"></canvas>
+    </div>
+  </div>
+
+  <p class="disclaimer">
+    Bemærk: Beregningen er et teoretisk estimat (Widmark-formel med lineær mave-absorption og forbrænding på 0,15 ‰/t). Brug aldrig appen til at vurdere om du må køre bil.
+  </p>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
+    import { getDatabase, ref, set, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAe4pQVrkQGCVG6ULrdlZwQkPhGP3Rn5HI",
+      authDomain: "promille-app.firebaseapp.com",
+      databaseURL: "https://promille-app-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "promille-app",
+      storageBucket: "promille-app.firebasestorage.app",
+      messagingSenderId: "387122317031",
+      appId: "1:387122317031:web:52f0f4fbe1411c74300442",
+      measurementId: "G-ZB9GBJCC2Y"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    isSupported().then(yes => { if (yes) getAnalytics(app); }).catch(() => {});
+    const db = getDatabase(app);
+
+    const COLORS = ["#38bdf8", "#f43f5e", "#22c55e", "#fbbf24", "#a855f7", "#fb923c", "#14b8a6", "#e879f9"];
+    const BURN_PER_MIN = 0.15 / 60; // 0.15 promille i timen
+
+    // Pure BAC simulation: steps 1 minute at a time from startMin to endMin
+    export function simulateMemberBAC(member, startMin, endMin, nowMin) {
+      const weight = Math.max(30, Number(member.weight) || 75);
+      const r = Number(member.sex) || 0.68;
+      const absorbMins = Math.max(10, Number(member.stomach) || 45);
+      const drinks = Object.entries(member.drinks || {}).map(([id, d]) => ({
+        id,
+        label: d.label,
+        grams: Number(d.grams) || 12,
+        min: Math.floor(Number(d.time) / 60000)
+      })).sort((a, b) => a.min - b.min);
+
+      if (!drinks.length) {
+        return {
+          currentBac: 0, peakBac: 0, totalStdDrinks: 0,
+          soberTime: "-", driveTime: "-",
+          series: Array.from({ length: Math.max(0, Math.floor((endMin - startMin) / 5) + 1) }, () => 0),
+          drinks
+        };
+      }
+
+      const simStart = Math.min(startMin, drinks[0].min);
+      // shortcut: cap simulation at 36h after simStart so runaway inputs cannot freeze the browser
+      const maxSimEnd = Math.max(endMin, nowMin + 24 * 60);
+      let bac = 0;
+      let peakBac = 0;
+      let currentBac = 0;
+      let soberMin = null;
+      let driveMin = null;
+      const series = [];
+
+      for (let m = simStart; m <= maxSimEnd; m++) {
+        let addedGrams = 0;
+        for (const d of drinks) {
+          if (m >= d.min && m < d.min + absorbMins) {
+            addedGrams += d.grams / absorbMins;
+          }
+        }
+        bac += addedGrams / (weight * r);
+        if (bac > 0) bac = Math.max(0, bac - BURN_PER_MIN);
+        if (bac > peakBac) peakBac = bac;
+        if (m === nowMin) currentBac = bac;
+
+        if (m >= startMin && m <= endMin && (m - startMin) % 5 === 0) {
+          series.push(Number(bac.toFixed(3)));
+        }
+        if (m >= nowMin) {
+          if (bac < 0.5 && driveMin === null) driveMin = m;
+          if (bac === 0 && soberMin === null && m > drinks[drinks.length - 1].min) soberMin = m;
+        }
+      }
+
+      const fmtMin = (targetMin) => {
+        if (targetMin === null) return ">24t";
+        if (targetMin <= nowMin) return "Nu";
+        const d = new Date(targetMin * 60000);
+        return d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
+      };
+
+      const totalGrams = drinks.reduce((s, d) => s + d.grams, 0);
+      return {
+        currentBac,
+        peakBac,
+        totalStdDrinks: totalGrams / 12,
+        driveTime: fmtMin(driveMin),
+        soberTime: fmtMin(soberMin),
+        series,
+        drinks
+      };
+    }
+
+    // Self-check assertion for BAC physics
+    (function selfCheck() {
+      const t0 = 60000 * 1000;
+      const res = simulateMemberBAC(
+        { weight: 80, sex: 0.68, stomach: 30, drinks: { d1: { label: "Øl", grams: 12, time: t0 } } },
+        1000, 1180, 1030
+      );
+      // 12 / (80 * 0.68) = 0.2206 promille raw, minus 30 mins of burn (0.075) = ~0.1456 promille at peak
+      console.assert(res.currentBac > 0.14 && res.currentBac < 0.15, "BAC self-check failed", res);
+    })();
+
+    // State & Persistence
+    let userId = localStorage.getItem("promille_uid");
+    if (!userId) {
+      userId = "u_" + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem("promille_uid", userId);
+    }
+
+    const urlParams = new URLSearchParams(location.search);
+    let roomCode = (urlParams.get("room") || localStorage.getItem("promille_room") || "PARTY1").toUpperCase();
+    let roomData = {};
+    let unsubscribeRoom = null;
+
+    // UI Elements
+    const roomBadge = document.getElementById("roomBadge");
+    const roomInput = document.getElementById("roomInput");
+    const userNameEl = document.getElementById("userName");
+    const userWeightEl = document.getElementById("userWeight");
+    const userSexEl = document.getElementById("userSex");
+    const userStomachEl = document.getElementById("userStomach");
+    const myDrinkCountEl = document.getElementById("myDrinkCount");
+    const myDrinkListEl = document.getElementById("myDrinkList");
+    const podiumContainer = document.getElementById("podiumContainer");
+    const leaderboardBody = document.getElementById("leaderboardBody");
+
+    // Load saved local profile defaults
+    userNameEl.value = localStorage.getItem("promille_name") || "";
+    userWeightEl.value = localStorage.getItem("promille_weight") || "75";
+    userSexEl.value = localStorage.getItem("promille_sex") || "0.68";
+    userStomachEl.value = localStorage.getItem("promille_stomach") || "45";
+
+    // Chart Setup
+    const ctx = document.getElementById("bacChart").getContext("2d");
+    const bacChart = new Chart(ctx, {
+      type: "line",
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: "#f8fafc" } },
+          tooltip: {
+            callbacks: {
+              label: (item) => `${item.dataset.label}: ${Number(item.raw).toFixed(2)} ‰`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 1.0,
+            ticks: { color: "#94a3b8", callback: (v) => v.toFixed(1) + " ‰" },
+            grid: { color: "#334155" }
+          }
+        }
+      }
+    });
+
+    function connectToRoom(code) {
+      roomCode = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "") || "PARTY1";
+      localStorage.setItem("promille_room", roomCode);
+      roomBadge.textContent = `Rum: ${roomCode}`;
+      roomInput.value = roomCode;
+      history.replaceState(null, "", `?room=${roomCode}`);
+
+      if (unsubscribeRoom) unsubscribeRoom();
+      const roomRef = ref(db, `rooms/${roomCode}/members`);
+      unsubscribeRoom = onValue(roomRef, (snap) => {
+        roomData = snap.val() || {};
+        // Sync current device inputs if member already exists in room
+        if (roomData[userId] && !userNameEl.value) {
+          userNameEl.value = roomData[userId].name || "";
+        }
+        renderAll();
+      });
+    }
+
+    async function ensureProfileSaved() {
+      const name = userNameEl.value.trim() || "Gæst";
+      const weight = Math.max(35, Math.min(250, Number(userWeightEl.value) || 75));
+      const sex = Number(userSexEl.value) || 0.68;
+      const stomach = Number(userStomachEl.value) || 45;
+
+      localStorage.setItem("promille_name", name);
+      localStorage.setItem("promille_weight", String(weight));
+      localStorage.setItem("promille_sex", String(sex));
+      localStorage.setItem("promille_stomach", String(stomach));
+
+      const existingDrinks = roomData[userId]?.drinks || {};
+      await set(ref(db, `rooms/${roomCode}/members/${userId}`), {
+        name,
+        weight,
+        sex,
+        stomach,
+        updatedAt: Date.now(),
+        drinks: existingDrinks
+      });
+    }
+
+    async function addDrink(label, grams, minutesAgo = 0) {
+      if (!userNameEl.value.trim()) {
+        userNameEl.focus();
+        alert("Indtast dit navn først under '1. Din Profil'.");
+        return;
+      }
+      await ensureProfileSaved();
+      const drinksRef = ref(db, `rooms/${roomCode}/members/${userId}/drinks`);
+      await push(drinksRef, {
+        label,
+        grams: Number(grams),
+        time: Date.now() - minutesAgo * 60000
+      });
+    }
+
+    window.deleteMyDrink = async (drinkId) => {
+      await remove(ref(db, `rooms/${roomCode}/members/${userId}/drinks/${drinkId}`));
+    };
+
+    function renderAll() {
+      const nowMin = Math.floor(Date.now() / 60000);
+      const memberEntries = Object.entries(roomData);
+
+      // Find global time window across all members' drinks
+      let earliestDrinkMin = nowMin - 60;
+      for (const [, m] of memberEntries) {
+        for (const d of Object.values(m.drinks || {})) {
+          const dm = Math.floor(Number(d.time) / 60000);
+          if (dm < earliestDrinkMin) earliestDrinkMin = dm;
+        }
+      }
+      const startMin = Math.floor(earliestDrinkMin / 5) * 5;
+      const endMin = Math.ceil((nowMin + 180) / 5) * 5; // Vis 3 timers prognose frem
+
+      const evaluated = memberEntries.map(([id, m], idx) => {
+        const sim = simulateMemberBAC(m, startMin, endMin, nowMin);
+        return {
+          id,
+          name: m.name || "Ukendt",
+          color: COLORS[idx % COLORS.length],
+          ...sim
+        };
+      }).sort((a, b) => b.currentBac - a.currentBac);
+
+      // 1. Render Podium (Top 3)
+      const p1 = evaluated[0];
+      const p2 = evaluated[1];
+      const p3 = evaluated[2];
+      const spotHtml = (p, rank, medal) => p ? `
+        <div class="podium-spot spot-${rank}">
+          <div class="podium-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+          <div class="podium-bac" style="color:${p.color}">${p.currentBac.toFixed(2)} ‰</div>
+          <div class="podium-pillar">${medal}</div>
+        </div>
+      ` : "";
+      podiumContainer.innerHTML = evaluated.length
+        ? `${spotHtml(p2, 2, "2")} ${spotHtml(p1, 1, "1")} ${spotHtml(p3, 3, "3")}`
+        : `<p style="color:var(--muted);align-self:center">Ingen deltagere i rummet endnu. Gem din profil for at starte!</p>`;
+
+      // 2. Render Table
+      leaderboardBody.innerHTML = evaluated.map((p, i) => `
+        <tr>
+          <td><span class="dot" style="background:${p.color}"></span><strong>${i + 1}. ${escapeHtml(p.name)}</strong></td>
+          <td><strong>${p.currentBac.toFixed(2)} ‰</strong></td>
+          <td>${p.peakBac.toFixed(2)} ‰</td>
+          <td>${p.totalStdDrinks.toFixed(1)}</td>
+          <td>${p.driveTime}</td>
+          <td>${p.soberTime}</td>
+        </tr>
+      `).join("");
+
+      // 3. Render My Drinks
+      const me = evaluated.find(e => e.id === userId);
+      const myDrinks = me ? [...me.drinks].reverse() : [];
+      myDrinkCountEl.textContent = String(myDrinks.length);
+      myDrinkListEl.innerHTML = myDrinks.map(d => {
+        const t = new Date(d.min * 60000).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
+        return `
+          <div class="drink-item">
+            <span><strong>${escapeHtml(d.label)}</strong> <span style="color:var(--muted)">(${(d.grams / 12).toFixed(1)} genst. kl. ${t})</span></span>
+            <button class="danger" onclick="deleteMyDrink('${d.id}')">Slet</button>
+          </div>
+        `;
+      }).join("") || `<p style="color:var(--muted);font-size:0.82rem">Ingen genstande registreret endnu.</p>`;
+
+      // 4. Render Multi-User Chart
+      const labels = [];
+      let nowIndex = 0;
+      for (let m = startMin, idx = 0; m <= endMin; m += 5, idx++) {
+        const d = new Date(m * 60000);
+        labels.push(d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
+        if (Math.abs(m - nowMin) < 3) nowIndex = idx;
+      }
+
+      const datasets = evaluated.map(p => ({
+        label: p.name,
+        data: p.series,
+        borderColor: p.color,
+        backgroundColor: p.color + "22",
+        borderWidth: 2.5,
+        pointRadius: (ctx) => ctx.dataIndex === nowIndex ? 5 : 0,
+        tension: 0.25,
+        segment: {
+          borderDash: (ctx) => ctx.p0DataIndex >= nowIndex ? [5, 5] : undefined
+        }
+      }));
+
+      // 0.5 promille køregrænse linje
+      datasets.push({
+        label: "0.50 ‰ Grænse",
+        data: labels.map(() => 0.5),
+        borderColor: "#94a3b8",
+        borderWidth: 1,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        fill: false
+      });
+
+      bacChart.data.labels = labels;
+      bacChart.data.datasets = datasets;
+      bacChart.update("none");
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s]));
+    }
+
+    // Event Listeners
+    document.getElementById("saveProfileBtn").addEventListener("click", ensureProfileSaved);
+
+    document.querySelectorAll(".drink-btn").forEach(btn => {
+      btn.addEventListener("click", () => addDrink(btn.dataset.label, Number(btn.dataset.grams)));
+    });
+
+    document.getElementById("addCustomBtn").addEventListener("click", () => {
+      const label = document.getElementById("customLabel").value.trim() || "Genstand";
+      const ml = Math.max(1, Number(document.getElementById("customMl").value) || 330);
+      const abv = Math.max(0.1, Number(document.getElementById("customAbv").value) || 4.6);
+      const ago = Math.max(0, Number(document.getElementById("customAgo").value) || 0);
+      // Alkohol vægtfylde = 0.8 g/ml
+      const grams = ml * (abv / 100) * 0.8;
+      addDrink(`🍹 ${label}`, grams, ago);
+    });
+
+    document.getElementById("joinRoomBtn").addEventListener("click", () => {
+      if (roomInput.value.trim()) connectToRoom(roomInput.value);
+    });
+
+    document.getElementById("newRoomBtn").addEventListener("click", () => {
+      const rand = "FEST" + Math.floor(100 + Math.random() * 900);
+      connectToRoom(rand);
+    });
+
+    // Opdater graf og forbrænding hvert 30. sekund
+    setInterval(renderAll, 30000);
+    connectToRoom(roomCode);
+  </script>
+</body>
+</html>
